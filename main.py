@@ -56,8 +56,23 @@ while cap.isOpened():
         roll_votes[roll_votes_idx] = roll_vote
         roll_votes_idx = (roll_votes_idx + 1) % N_DICE_RESULT_VOTES
         roll_result = statistics.mode(roll_votes)
-        if roll_result > 1:
-            print(roll_result)
+
+    if roll_result > 1:
+        font = cv.FONT_HERSHEY_PLAIN
+        bottomLeftCornerOfText = (25, rescaled.shape[0] - 50)
+        fontScale = 2
+        fontColor = (255,255,255)
+        thickness = 1
+        lineType = 2
+
+        cv.putText(rescaled,f"Roll Result: {roll_result}",
+            bottomLeftCornerOfText,
+            font,
+            fontScale,
+            fontColor,
+            thickness,
+            lineType)
+
 
     cv.imshow('frame', rescaled)
     cv.imshow('dice', dice_img)
