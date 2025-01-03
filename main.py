@@ -23,22 +23,28 @@ roll_votes = [0] * N_DICE_RESULT_VOTES
 roll_votes_idx = 0
 roll_result = -1
 
-cap = cv.VideoCapture("med_output0.mp4")
+cap = cv.VideoCapture("output0.mp4")
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         print("Can't receive frame. Exiting ...")
         break
     rescaled = cv.resize(frame, None, fx=0.3, fy=0.3, interpolation = cv.INTER_CUBIC)
-
     gray = cv.cvtColor(rescaled, cv.COLOR_BGR2GRAY)
-    match = cv.matchTemplate(gray, dice_template.img, cv.TM_CCORR_NORMED)
+
+    match = cv.matchTemplate(gray, board_template.img, cv.TM_CCORR_NORMED)
+    min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
+    board_top_left = max_loc
+    board_img = rescaled[ board_top_left[1] : board_top_left[1] + board_template.height, board_top_left[0]:board_top_left[0] + board_template.width]
+
+    gray_board = cv.cvtColor(board_img, cv.COLOR_BGR2GRAY)
+    match = cv.matchTemplate(gray_board, dice_template.img, cv.TM_CCORR_NORMED)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
     top_left = max_loc
     bottom_right = (top_left[0] + dice_template.width, top_left[1] + dice_template.height)
-    cv.rectangle(rescaled, top_left, bottom_right, 255, 1)
+    cv.rectangle(board_img, top_left, bottom_right, 255, 1)
 
-    dice_img = gray[ top_left[1] : top_left[1] + dice_template.height, top_left[0]:top_left[0] + dice_template.width]
+    dice_img = gray_board[ top_left[1] : top_left[1] + dice_template.height, top_left[0]:top_left[0] + dice_template.width]
     match = cv.matchTemplate(dice_img, dot_template.img, cv.TM_CCOEFF_NORMED)
     loc = np.where( match >= DOT_THRESHOLD)
     dots = []
@@ -71,20 +77,16 @@ while cap.isOpened():
             thickness,
             lineType)
 
-    match = cv.matchTemplate(gray, pawn_template.img, cv.TM_CCORR_NORMED)
+    match = cv.matchTemplate(gray_board, pawn_template.img, cv.TM_CCORR_NORMED)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
     top_left = max_loc
     bottom_right = (top_left[0] + pawn_template.width, top_left[1] + pawn_template.height)
-    cv.rectangle(rescaled, top_left, bottom_right, 255, 1)
+    cv.rectangle(board_img, top_left, bottom_right, 255, 1)
 
-    match = cv.matchTemplate(gray, board_template.img, cv.TM_CCORR_NORMED)
-    min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
-    top_left = max_loc
-    bottom_right = (top_left[0] + board_template.width, top_left[1] + board_template.height)
-    cv.rectangle(rescaled, top_left, bottom_right, 255, 1)
 
     cv.imshow('frame', rescaled)
     cv.imshow('dice', dice_img)
+    cv.imshow('board', board_img)
     if cv.waitKey(1) == ord('q'):
         break
 
