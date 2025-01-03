@@ -1,13 +1,28 @@
 import numpy as np
 import cv2 as cv
+import glob
+import statistics
 
-dice_template = cv.imread('dice.png', cv.IMREAD_GRAYSCALE)
+## PARAMETERS
+DOT_THRESHOLD  = 0.66 # (0, 1.0)
+N_DICE_RESULT_VOTES = 101 # How many results are used to determine dice result
 
 
+
+
+dice_template = cv.imread("dice.png", cv.IMREAD_GRAYSCALE)
+dot_template = cv.imread("dot.png", cv.IMREAD_GRAYSCALE)
 cap = cv.VideoCapture("output0.mp4")
 
-w, h = dice_template.shape[::-1]
+w = 32
+h = 32
 
+dot_w = 5
+dot_h = 5
+
+roll_votes = [0] * N_DICE_RESULT_VOTES
+roll_votes_idx = 0
+roll_result = -1
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -19,22 +34,33 @@ while cap.isOpened():
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
     top_left = max_loc
     bottom_right = (top_left[0] + w, top_left[1] + h)
-    cv.rectangle(rescaled, top_left, bottom_right, 255, 2)
-    x = max_loc[1]
-    y = max_loc[0]
-    area = 10
-    match[x-area:x+area, y-area:y+area] = 0
-    min_val, max_val2, min_loc, max_loc = cv.minMaxLoc(match)
-    print(max_val, max_val2)
-    top_left = max_loc
-    bottom_right = (top_left[0] + w, top_left[1] + h)
-    cv.rectangle(rescaled, top_left, bottom_right, 255, 2)
+    cv.rectangle(rescaled, top_left, bottom_right, 255, 1)
 
-    # loc = np.where(match >= 0.6)
-    # for pt in zip (*loc[::-1]):
-        # cv.rectangle(rescaled, pt, (pt[0] + w, pt[1] + h), (0, 0, 255), 2)
-    print(np.max(match))
+    dice_img = gray[ top_left[1] : top_left[1] + h, top_left[0]:top_left[0] + w]
+
+    match = cv.matchTemplate(dice_img, dot_template, cv.TM_CCOEFF_NORMED)
+    loc = np.where( match >= DOT_THRESHOLD)
+    dots = []
+    for pt in zip(*loc[::-1]):
+        unique = True
+        for dot in dots:
+            if np.sqrt((dot[0] - pt[0])**2 + (dot[1] - pt[1])**2) < 2:
+                unique = False
+                break
+        if unique:
+            cv.rectangle(dice_img, pt, (pt[0] + dot_w, pt[1] + dot_h), 255, 1)
+            dots.append(pt)
+
+    roll_vote = len(dots)
+    if roll_vote >= 1 and roll_vote <= 6:
+        roll_votes[roll_votes_idx] = roll_vote
+        roll_votes_idx = (roll_votes_idx + 1) % N_DICE_RESULT_VOTES
+        roll_result = statistics.mode(roll_votes)
+        if roll_result > 1:
+            print(roll_result)
+
     cv.imshow('frame', rescaled)
+    cv.imshow('dice', dice_img)
     if cv.waitKey(1) == ord('q'):
         break
 
