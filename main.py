@@ -16,7 +16,7 @@ class Template:
 
 dice_template = Template(cv.imread("dice.png", cv.IMREAD_GRAYSCALE), 32, 32)
 dot_template = Template(cv.imread("dot.png", cv.IMREAD_GRAYSCALE), 5, 5)
-
+pawn_template = Template(cv.imread("pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 
 roll_votes = [0] * N_DICE_RESULT_VOTES
 roll_votes_idx = 0
@@ -62,7 +62,6 @@ while cap.isOpened():
         fontColor = (255,255,255)
         thickness = 1
         lineType = 2
-
         cv.putText(rescaled,f"Roll Result: {roll_result}",
             bottomLeftCornerOfText,
             font,
@@ -71,6 +70,11 @@ while cap.isOpened():
             thickness,
             lineType)
 
+    match = cv.matchTemplate(gray, pawn_template.img, cv.TM_CCORR_NORMED)
+    min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
+    top_left = max_loc
+    bottom_right = (top_left[0] + pawn_template.width, top_left[1] + pawn_template.height)
+    cv.rectangle(rescaled, top_left, bottom_right, 255, 1)
 
     cv.imshow('frame', rescaled)
     cv.imshow('dice', dice_img)
