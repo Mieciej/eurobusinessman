@@ -23,6 +23,56 @@ roll_votes = [0] * N_DICE_RESULT_VOTES
 roll_votes_idx = 0
 roll_result = -1
 
+
+def get_field(pos):
+    x, y = pos
+    if 17 <= x and 532 <= y and x <= 97  and y <= 611:
+            return "1. START"
+    elif 16 <= x and 486 <= y and x <= 78  and y <= 526:
+            return "2. SALONIKI"
+    elif 15 <= x and 439 <= y and x <= 97  and y <= 480:
+            return "3. NIEBIESKA SZANSA"
+    elif 14 <= x and 392 <= y and x <= 77  and y <= 433:
+            return "4. ATENY"
+    elif 13 <= x and 345 <= y and x <= 95  and y <= 387:
+            return "5. STRZEŻONY PARKING"
+    elif 11 <= x and 298 <= y and x <= 94  and y <= 340:
+            return "6. KOLEJE POŁUDNIOWE"
+    elif 10 <= x and 250 <= y and x <= 75  and y <= 292:
+            return "7. NEAPOL"
+    elif 10 <= x and 203 <= y and x <= 93  and y <= 245:
+            return "8. CZERWONA SZANSA"
+    elif 7 <= x and 154 <= y and x <= 72  and y <= 196:
+            return "9. MEDIOLAN"
+    elif 6 <= x and 105 <= y and x <= 71  and y <= 148:
+            return "10. MEDIOLAN"
+    elif 4 <= x and 14 <= y and x <= 90  and y <= 100:
+            return "11. WIĘZIENIE"
+    elif 93 <= x and 14 <= y and x <= 137  and y <= 79:
+            return "12. BARCELONA"
+    elif 142 <= x and 13 <= y and x <= 186  and y <= 99:
+            return "13. ELEKTROWNIA"
+    elif 190 <= x and 13 <= y and x <= 234  and y <= 79:
+            return "14. SEWILLA"
+    elif 238 <= x and 13 <= y and x <= 282  and y <= 79:
+            return "15. MADRYT"
+    elif 288 <= x and 13 <= y and x <= 330  and y <= 98:
+            return "16. KOLEJE ZACHODNIE"
+    elif 336 <= x and 12 <= y and x <= 379  and y <= 78:
+            return "17. LIVERPOLL"
+    elif 385 <= x and 13 <= y and x <= 427  and y <= 98:
+            return "18. NIEBIESKA SZANSA"
+    elif 434 <= x and 12 <= y and x <= 476  and y <= 78:
+            return "19. GLASGOW"
+    elif 482 <= x and 12 <= y and x <= 524  and y <= 78:
+            return "20. LONDYN"
+    elif 531 <= x and 11 <= y and x <= 613  and y <= 97:
+            return "21. DARMOWY PARKING"
+    elif 531 <= x and 11 <= y and x <= 613  and y <= 97:
+            return "19. GLASGOW"
+    else:
+        return "UKNOWN"
+
 cap = cv.VideoCapture("output0.mp4")
 while cap.isOpened():
     ret, frame = cap.read()
@@ -79,10 +129,11 @@ while cap.isOpened():
 
     match = cv.matchTemplate(gray_board, pawn_template.img, cv.TM_CCORR_NORMED)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
-    top_left = max_loc
-    bottom_right = (top_left[0] + pawn_template.width, top_left[1] + pawn_template.height)
-    cv.rectangle(board_img, top_left, bottom_right, 255, 1)
-
+    pawn_top_left = max_loc
+    bottom_right = (pawn_top_left[0] + pawn_template.width, pawn_top_left[1] + pawn_template.height)
+    cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
+    if max_val > 0.92:
+        print(get_field((pawn_top_left[0] + pawn_template.width/2,pawn_top_left[1] + pawn_template.height/2)))
 
     cv.imshow('frame', rescaled)
     cv.imshow('dice', dice_img)
@@ -92,3 +143,6 @@ while cap.isOpened():
 
 cap.release()
 cv.destroyAllWindows()
+
+
+
