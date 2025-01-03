@@ -17,12 +17,13 @@ class Template:
 dice_template = Template(cv.imread("dice.png", cv.IMREAD_GRAYSCALE), 32, 32)
 dot_template = Template(cv.imread("dot.png", cv.IMREAD_GRAYSCALE), 5, 5)
 pawn_template = Template(cv.imread("pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
+board_template = Template(cv.imread("board.png", cv.IMREAD_GRAYSCALE), 620, 620)
 
 roll_votes = [0] * N_DICE_RESULT_VOTES
 roll_votes_idx = 0
 roll_result = -1
 
-cap = cv.VideoCapture("output0.mp4")
+cap = cv.VideoCapture("med_output0.mp4")
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -74,6 +75,12 @@ while cap.isOpened():
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
     top_left = max_loc
     bottom_right = (top_left[0] + pawn_template.width, top_left[1] + pawn_template.height)
+    cv.rectangle(rescaled, top_left, bottom_right, 255, 1)
+
+    match = cv.matchTemplate(gray, board_template.img, cv.TM_CCORR_NORMED)
+    min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
+    top_left = max_loc
+    bottom_right = (top_left[0] + board_template.width, top_left[1] + board_template.height)
     cv.rectangle(rescaled, top_left, bottom_right, 255, 1)
 
     cv.imshow('frame', rescaled)
