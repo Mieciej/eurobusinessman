@@ -68,8 +68,44 @@ def get_field(pos):
             return "20. LONDYN"
     elif 531 <= x and 11 <= y and x <= 613  and y <= 97:
             return "21. DARMOWY PARKING"
-    elif 531 <= x and 11 <= y and x <= 613  and y <= 97:
-            return "19. GLASGOW"
+    elif 549 <= x and 103 <= y and x <= 612  and y <= 146:
+            return "22. ROTTERDAM"
+    elif 549 <= x and 153 <= y and x <= 611  and y <= 195:
+            return "23. CZERWONA SZANSA"
+    elif 548 <= x and 201 <= y and x <= 610  and y <= 243:
+            return "24. BRUKSELA"
+    elif 545 <= x and 249 <= y and x <= 608  and y <= 291:
+            return "25. AMSTERDAM"
+    elif 526 <= x and 298 <= y and x <= 608  and y <= 339:
+            return "26. KOLEJE POLNOCNE"
+    elif 545 <= x and 345 <= y and x <= 607  and y <= 386:
+            return "27. MALMO"
+    elif 544 <= x and 392 <= y and x <= 606  and y <= 433:
+            return "28. GOTEBORG"
+    elif 524 <= x and 439 <= y and x <= 605  and y <= 480:
+            return "29. SIEC WODOCIAGOWA"
+    elif 543 <= x and 487 <= y and x <= 605  and y <= 527:
+            return "30. SZTOKHOLM"
+    elif 523 <= x and 532 <= y and x <= 603  and y <= 612:
+            return "31. IDZ DO WIEZIENIA"
+    elif 476 <= x and 550 <= y and x <= 517  and y <= 611:
+            return "32. FRANKFURT"
+    elif 429 <= x and 550 <= y and x <= 470  and y <= 612:
+            return "33. KOLONIA"
+    elif 382 <= x and 531 <= y and x <= 423  and y <= 611:
+            return "34. NIEBIESKA SZANSA"
+    elif 336 <= x and 550 <= y and x <= 377  and y <= 611:
+            return "35. BONN"
+    elif 289 <= x and 531 <= y and x <= 330  and y <= 612:
+            return "36. KOLEJE WSCHODNIE"
+    elif 242 <= x and 550 <= y and x <= 284  and y <= 611:
+            return "37. CZERWONA SZANSA"
+    elif 195 <= x and 550 <= y and x <= 237  and y <= 610:
+            return "38. INNSBRUCK"
+    elif 149 <= x and 531 <= y and x <= 191  and y <= 611:
+            return "39. PODATEK"
+    elif 102 <= x and 550 <= y and x <= 144  and y <= 611:
+            return "40. WIEDEN"
     else:
         return "UKNOWN"
 
@@ -133,7 +169,19 @@ while cap.isOpened():
     bottom_right = (pawn_top_left[0] + pawn_template.width, pawn_top_left[1] + pawn_template.height)
     cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
     if max_val > 0.92:
-        print(get_field((pawn_top_left[0] + pawn_template.width/2,pawn_top_left[1] + pawn_template.height/2)))
+        font = cv.FONT_HERSHEY_PLAIN
+        bottomLeftCornerOfText = (25, rescaled.shape[0] - 80)
+        fontScale = 2
+        fontColor = (255,255,255)
+        thickness = 1
+        lineType = 2
+        cv.putText(rescaled,f"Bue Pawn Pos: {get_field((pawn_top_left[0] + pawn_template.width/2,pawn_top_left[1] + pawn_template.height/2))}",
+            bottomLeftCornerOfText,
+            font,
+            fontScale,
+            fontColor,
+            thickness,
+            lineType)
 
     cv.imshow('frame', rescaled)
     cv.imshow('dice', dice_img)
