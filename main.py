@@ -234,17 +234,19 @@ while cap.isOpened():
                    thickness,
                    lineType)
     # for pawn_template in pawn_templates:
-    match = cv.matchTemplate(gray_blue_board, blue_pawn_template.img, cv.TM_CCORR_NORMED)
+    match = cv.matchTemplate(gray_blue_board, blue_pawn_template.img, cv.TM_SQDIFF)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
-    pawn_top_left = max_loc
+    pawn_top_left = min_loc
     bottom_right = (pawn_top_left[0] + blue_pawn_template.width, pawn_top_left[1] + blue_pawn_template.height)
-    cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
+    if min_val < 2000000:
+        cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
 
     match = cv.matchTemplate(gray_red_board, red_pawn_template.img, cv.TM_CCORR_NORMED)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
     pawn_top_left = max_loc
     bottom_right = (pawn_top_left[0] + red_pawn_template.width, pawn_top_left[1] + red_pawn_template.height)
-    cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
+    if max_val > 0.9:
+        cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
     # for i in range(2):
     #     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
     #     pawn_top_left = max_loc
