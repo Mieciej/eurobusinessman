@@ -7,7 +7,7 @@ from dataclasses import dataclass
 ## PARAMETERS
 DOT_THRESHOLD  = 0.73 # (0, 1.0)
 N_DICE_RESULT_VOTES = 101 # How many results are used to determine dice result
-N_BLUE_PAWN_VOTES = 101
+N_PAWN_VOTES = 101
 
 @dataclass
 class Template:
@@ -17,13 +17,17 @@ class Template:
 
 dice_template = Template(cv.imread("dice.png", cv.IMREAD_GRAYSCALE), 32, 32)
 dot_template = Template(cv.imread("dot.png", cv.IMREAD_GRAYSCALE), 5, 5)
-pawn_template = Template(cv.imread("pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
+blue_pawn_template = Template(cv.imread("blue_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
+red_pawn_template = Template(cv.imread("red_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 board_template = Template(cv.imread("board.png", cv.IMREAD_GRAYSCALE), 620, 620)
 
 roll_votes = [0] * N_DICE_RESULT_VOTES
 roll_votes_idx = 0
 roll_result = -1
 
+pawn_pos_votes = [[-1] * N_PAWN_VOTES, [-1] * N_PAWN_VOTES]
+pawn_votes_idx = [0,0]
+pawn_pos = [-1, -1]
 
 field_names = [ "1. START",
                 "2. SALONIKI",
@@ -168,7 +172,29 @@ while cap.isOpened():
     board_top_left = max_loc
     board_img = rescaled[ board_top_left[1] : board_top_left[1] + board_template.height, board_top_left[0]:board_top_left[0] + board_template.width]
 
+    hsv_board = cv.cvtColor(board_img, cv.COLOR_BGR2HSV)
+    lower_blue = np.array([90, 50, 50])
+    upper_blue = np.array([130, 255, 255])
+    mask = cv.inRange(hsv_board, lower_blue, upper_blue) 
+    blue_board = board_img.copy()
+    blue_board[mask==0] = (255,255,255)
+    lower_red1 = np.array([0, 50, 50])
+    upper_red1 = np.array([10, 255, 255])
+
+    lower_red2 = np.array([170, 50, 50])
+    upper_red2 = np.array([180, 255, 255])
+
+    mask1 = cv.inRange(hsv_board, lower_red1, upper_red1)
+    mask2 = cv.inRange(hsv_board, lower_red2, upper_red2)
+
+    mask = cv.bitwise_or(mask1, mask2)
+    red_board = board_img.copy()
+    red_board[mask==0] = (255,255,255)
+
     gray_board = cv.cvtColor(board_img, cv.COLOR_BGR2GRAY)
+    gray_blue_board = cv.cvtColor(blue_board, cv.COLOR_BGR2GRAY)
+    gray_red_board = cv.cvtColor(red_board, cv.COLOR_BGR2GRAY)
+
     match = cv.matchTemplate(gray_board, dice_template.img, cv.TM_CCORR_NORMED)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
     top_left = max_loc
@@ -207,31 +233,45 @@ while cap.isOpened():
                    fontColor,
                    thickness,
                    lineType)
-
-    match = cv.matchTemplate(gray_board, pawn_template.img, cv.TM_CCORR_NORMED)
+    # for pawn_template in pawn_templates:
+    match = cv.matchTemplate(gray_blue_board, blue_pawn_template.img, cv.TM_CCORR_NORMED)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
     pawn_top_left = max_loc
-    bottom_right = (pawn_top_left[0] + pawn_template.width, pawn_top_left[1] + pawn_template.height)
+    bottom_right = (pawn_top_left[0] + blue_pawn_template.width, pawn_top_left[1] + blue_pawn_template.height)
     cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
-    field_idx = get_field((pawn_top_left[0] + pawn_template.width/2,pawn_top_left[1] + pawn_template.height/2))
-    if field_idx != -1:
-        font = cv.FONT_HERSHEY_PLAIN
-        bottomLeftCornerOfText = (25, rescaled.shape[0] - 80)
-        fontScale = 2
-        fontColor = (255,255,255)
-        thickness = 1
-        lineType = 2
-        cv.putText(rescaled,f"Bue Pawn Pos: {field_names[field_idx]}",
-                   bottomLeftCornerOfText,
-                   font,
-                   fontScale,
-                   fontColor,
-                   thickness,
-                   lineType)
 
-    cv.imshow('frame', rescaled)
+    match = cv.matchTemplate(gray_red_board, red_pawn_template.img, cv.TM_CCORR_NORMED)
+    min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
+    pawn_top_left = max_loc
+    bottom_right = (pawn_top_left[0] + red_pawn_template.width, pawn_top_left[1] + red_pawn_template.height)
+    cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
+    # for i in range(2):
+    #     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
+    #     pawn_top_left = max_loc
+    #     bottom_right = (pawn_top_left[0] + pawn_template.width, pawn_top_left[1] + pawn_template.height)
+    #     cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
+    #     field_idx = get_field((pawn_top_left[0] + pawn_template.width/2,pawn_top_left[1] + pawn_template.height/2))
+    #     if field_idx != -1:
+    #         pawn_pos_votes[i][pawn_votes_idx[i]] = field_idx
+    #         pawn_votes_idx[i] = (pawn_votes_idx[i] + 1) % N_PAWN_VOTES
+    #         pawn_pos[i] = statistics.mode(pawn_pos_votes[i])
+    #     if pawn_pos[i] !=-1:
+    #         font = cv.FONT_HERSHEY_PLAIN
+    #         bottomLeftCornerOfText = (25, rescaled.shape[0] - 80)
+    #         fontScale = 2
+    #         fontColor = (255,255,255)
+    #         thickness = 1
+    #         lineType = 2
+    #         cv.putText(rescaled,f"Pawn Pos: {field_names[pawn_pos[i]]}",
+    #                    bottomLeftCornerOfText,
+    #                    font,
+    #                    fontScale,
+    #                    fontColor,
+    #                    thickness,
+    #                    lineType)
+
+    cv.imshow('frame', frame)
     cv.imshow('dice', dice_img)
-    cv.imshow('board', board_img)
     if cv.waitKey(1) == ord('q'):
         break
 
