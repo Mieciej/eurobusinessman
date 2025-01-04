@@ -19,6 +19,7 @@ dice_template = Template(cv.imread("dice.png", cv.IMREAD_GRAYSCALE), 32, 32)
 dot_template = Template(cv.imread("dot.png", cv.IMREAD_GRAYSCALE), 5, 5)
 blue_pawn_template = Template(cv.imread("blue_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 red_pawn_template = Template(cv.imread("red_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
+green_pawn_template = Template(cv.imread("green_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 board_template = Template(cv.imread("board.png", cv.IMREAD_GRAYSCALE), 620, 620)
 
 roll_votes = [0] * N_DICE_RESULT_VOTES
@@ -157,7 +158,7 @@ def get_field(pos):
     else:
         return -1
 
-cap = cv.VideoCapture("scaled_output.mp4")
+cap = cv.VideoCapture("scaled_med_output0.mp4")
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -183,17 +184,23 @@ while cap.isOpened():
 
     lower_red2 = np.array([170, 50, 50])
     upper_red2 = np.array([180, 255, 255])
-
     mask1 = cv.inRange(hsv_board, lower_red1, upper_red1)
     mask2 = cv.inRange(hsv_board, lower_red2, upper_red2)
-
     mask = cv.bitwise_or(mask1, mask2)
     red_board = board_img.copy()
     red_board[mask==0] = (255,255,255)
 
+    lower_green = np.array([35, 40, 40])
+    upper_green = np.array([85, 255, 255])
+    mask = cv.inRange(hsv_board, lower_green, upper_green)
+    green_board = board_img.copy()
+    green_board[mask==0] = (255,255,255)
+
+
     gray_board = cv.cvtColor(board_img, cv.COLOR_BGR2GRAY)
     gray_blue_board = cv.cvtColor(blue_board, cv.COLOR_BGR2GRAY)
     gray_red_board = cv.cvtColor(red_board, cv.COLOR_BGR2GRAY)
+    gray_green_board = cv.cvtColor(green_board, cv.COLOR_BGR2GRAY)
 
     match = cv.matchTemplate(gray_board, dice_template.img, cv.TM_CCORR_NORMED)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
@@ -241,11 +248,18 @@ while cap.isOpened():
     if min_val < 2000000:
         cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
 
-    match = cv.matchTemplate(gray_red_board, red_pawn_template.img, cv.TM_CCORR_NORMED)
+    match = cv.matchTemplate(gray_red_board, red_pawn_template.img, cv.TM_SQDIFF)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
-    pawn_top_left = max_loc
+    pawn_top_left = min_loc
     bottom_right = (pawn_top_left[0] + red_pawn_template.width, pawn_top_left[1] + red_pawn_template.height)
-    if max_val > 0.9:
+    if min_val < 2000000:
+        cv.rectangle(green_board, pawn_top_left, bottom_right, 255, 1)
+
+    match = cv.matchTemplate(gray_green_board, green_pawn_template.img, cv.TM_SQDIFF)
+    min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
+    pawn_top_left = min_loc
+    bottom_right = (pawn_top_left[0] + green_pawn_template.width, pawn_top_left[1] + green_pawn_template.height)
+    if min_val < 2000000:
         cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
     # for i in range(2):
     #     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
@@ -273,6 +287,7 @@ while cap.isOpened():
     #                    lineType)
 
     cv.imshow('frame', frame)
+    cv.imshow('board', green_board)
     cv.imshow('dice', dice_img)
     if cv.waitKey(1) == ord('q'):
         break
