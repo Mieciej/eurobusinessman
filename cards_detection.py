@@ -2,9 +2,13 @@ import cv2
 import numpy as np
 
 CHANCE_CARD_DIM_RATIO = 1.5
-MIN_AREA = 9000
+MIN_AREA = 15000
+MAX_AREA = 30000
 MINIMAL_DETECTION_RATIO = 0.4
-OTHER_COLOR_NUMBER_THRESHOLD = 500
+OTHER_COLOR_NUMBER_THRESHOLD = 1000
+MARGIN_RATIO = 0.1
+
+frame_count = 0
 
 def filter_hsv_values(hsv_roi):
     """ filters HSV values and returns masks for red and blue cards """
@@ -35,6 +39,7 @@ def filter_hsv_values(hsv_roi):
 
 
 def detect_squares(frame):
+    frame = cv2.resize(frame, None, fx=0.3, fy=0.3, interpolation=cv2.INTER_CUBIC)
     red_flag, blue_flag = False, False # there cannot be multiple such detections
     gray = cv2.cvtColor(np.copy(frame), cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (3, 3), 0)
@@ -43,36 +48,45 @@ def detect_squares(frame):
     # closing
     kernel = np.ones((5, 5), np.uint8)
     edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+    edges = cv2.dilate(edges, np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=np.uint8),)
 
     contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    height, width = frame.shape[:2]
+    margin_w, margin_h = int(width * MARGIN_RATIO), int(height * MARGIN_RATIO)
 
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
-        area = cv2.contourArea(contour)
+        
+        if x < margin_w or x + w > width - margin_w or y < margin_h or y + h > height - margin_h:
+            continue
+        
+        if w * h < MIN_AREA or w * h > MAX_AREA:
+            continue
         
         detections = np.sum(edges[y:y+h, x:x+w] == 255)
+        
+        if detections / (w * h) < MINIMAL_DETECTION_RATIO:
+            continue
+        
         roi = frame[y:y+h, x:x+w]
         hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        
         mask_red, mask_blue = filter_hsv_values(hsv_roi)
-        
         red_pixels = np.sum(mask_red == 255)
         blue_pixels = np.sum(mask_blue == 255)
-        if area > MIN_AREA and detections / (2 * area) > MINIMAL_DETECTION_RATIO:
-            if red_pixels > (MIN_AREA / 2) and blue_pixels < OTHER_COLOR_NUMBER_THRESHOLD and w/h < CHANCE_CARD_DIM_RATIO and not red_flag:
-                red_flag = True
-                cv2.putText(frame, f"Red card {red_pixels}", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                
-                
-            elif blue_pixels > (MIN_AREA / 2) and red_pixels < OTHER_COLOR_NUMBER_THRESHOLD and w/h < CHANCE_CARD_DIM_RATIO and not blue_flag:
-                blue_flag = True
-                cv2.putText(frame, f"Blue card {blue_pixels}", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+        if red_pixels > (MIN_AREA / 5) and blue_pixels < OTHER_COLOR_NUMBER_THRESHOLD and w/h < CHANCE_CARD_DIM_RATIO and not red_flag:
+            red_flag = True
+            cv2.putText(frame, f"Red card {w * h} {red_pixels}", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            
+        elif blue_pixels > (MIN_AREA / 5) and red_pixels < OTHER_COLOR_NUMBER_THRESHOLD and w/h < CHANCE_CARD_DIM_RATIO and not blue_flag:
+            blue_flag = True
+            cv2.putText(frame, f"Blue card {w * h} {blue_pixels}", (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
     return frame
 
-cap = cv2.VideoCapture("output_video_difficult.mp4")
+cap = cv2.VideoCapture("output4.mp4")
 
 while cap.isOpened():
     ret, frame = cap.read()
