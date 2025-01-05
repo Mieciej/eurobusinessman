@@ -32,18 +32,19 @@ roll_result = -1
 pawn_pos_votes = [[-1] * N_PAWN_VOTES, [-1] * N_PAWN_VOTES, [-1] * N_PAWN_VOTES]
 pawn_votes_idx = [0, 0, 0]
 pawn_pos = [-1, -1, -1]
+prev_pawn_pos = [-1, -1, -1]
 
 field_names = [ "1. START",
                 "2. SALONIKI",
                 "3. NIEBIESKA SZANSA",
                 "4. ATENY",
-                "5. STRZEŻONY PARKING",
-                "6. KOLEJE POŁUDNIOWE",
+                "5. STRZEZONY PARKING",
+                "6. KOLEJE POLUDNIOWE",
                 "7. NEAPOL",
                 "8. CZERWONA SZANSA",
                 "9. MEDIOLAN",
                 "10. RZYM",
-                "11. WIĘZIENIE",
+                "11. WIEZIENIE",
                 "12. BARCELONA",
                 "13. ELEKTROWNIA",
                 "14. SEWILLA",
@@ -161,12 +162,23 @@ def get_field(pos):
     else:
         return -1
 
-cap = cv.VideoCapture("scaled_rot_med_output0.mp4")
+cap = cv.VideoCapture("scaled_output.mp4")
+
+events = []
+
+
+player_names = [ "blue",
+                 "red",
+                 "green"
+        ]
+
+elapsed_frames = 0
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         print("Can't receive frame. Exiting ...")
         break
+    elapsed_frames +=1
     # rescaled = cv.resize(frame, None, fx=0.3, fy=0.3, interpolation = cv.INTER_CUBIC)
     rescaled = frame
     gray = cv.cvtColor(rescaled, cv.COLOR_BGR2GRAY)
@@ -240,12 +252,24 @@ while cap.isOpened():
             if field_idx != -1:
                 pawn_pos_votes[i][pawn_votes_idx[i]] = field_idx
                 pawn_votes_idx[i] = (pawn_votes_idx[i] + 1) % N_PAWN_VOTES
-                pawn_pos[i] = statistics.mode(pawn_pos_votes[i])
+                new_pos = statistics.mode(pawn_pos_votes[i])
+                if new_pos != pawn_pos[i]:
+                    if pawn_pos[i] != -1:
+                        roll = new_pos - pawn_pos[i]
+                        if roll < 0:
+                            roll = 40 + roll
+                        secs = elapsed_frames // 30
+                        mins = secs // 60
+                        secs %= 60
+                        time_str = f"[{mins:02d}:{secs:02d}]:"
+                        events.append(f"{time_str} Player {player_names[i]} rolled: {roll}")
+                        events.append(f"{time_str} Player {player_names[i]} moved from {field_names[pawn_pos[i]]} to {field_names[new_pos]}")
+                    pawn_pos[i] = new_pos
 
     pad_right = 800
     padded_image = cv.copyMakeBorder(rescaled, 0, 0, 0, pad_right, cv.BORDER_CONSTANT, None, (255, 255, 255))
     font = cv.FONT_HERSHEY_PLAIN
-    fontScale = 2
+    fontScale = 1
     fontColor = (15,15,15)
     thickness = 1
     line_height = int( padded_image.shape[0] * 0.03)
@@ -253,21 +277,21 @@ while cap.isOpened():
     line_offset_x = int(rescaled.shape[1] + 0.05 * pad_right)
     lineType = 1
 
-    if roll_result >= 1:
-        bottomLeftCornerOfText = (line_offset_x, line_offset_y)
-        cv.putText(padded_image,f"Roll Result: {roll_result}",
-                   bottomLeftCornerOfText,
-                   font,
-                   fontScale,
-                   fontColor,
-                   thickness,
-                   lineType)
+    # if roll_result >= 1:
+    #     bottomLeftCornerOfText = (line_offset_x, line_offset_y)
+    #     cv.putText(padded_image,f"Roll Result: {roll_result}",
+    #                bottomLeftCornerOfText,
+    #                font,
+    #                fontScale,
+    #                fontColor,
+    #                thickness,
+    #                lineType)
     n_players = 1
     for i in range(3):
         text : str
         if pawn_pos[i] !=-1:
             bottomLeftCornerOfText = (line_offset_x, line_height * (n_players) + line_offset_y)
-            text = f"Player {n_players}: {field_names[pawn_pos[i]]}"
+            text = f"Player {player_names[i]}: {field_names[pawn_pos[i]]}"
             n_players +=1
             cv.putText(padded_image, text,
                        bottomLeftCornerOfText,
@@ -276,6 +300,28 @@ while cap.isOpened():
                        fontColor,
                        thickness,
                        lineType)
+    if len(events) > 0:
+        bottomLeftCornerOfText = (line_offset_x, line_height * (n_players) + line_offset_y)
+        cv.putText(padded_image, "Events:",
+                   bottomLeftCornerOfText,
+                   font,
+                   fontScale,
+                   fontColor,
+                   thickness,
+                   lineType)
+    for i in range(len(events)):
+        if (i > 15):
+            break
+        bottomLeftCornerOfText = (line_offset_x, line_height * (n_players + i + 1) + line_offset_y)
+        event = events[len(events)-i-1]
+        cv.putText(padded_image, event,
+                   bottomLeftCornerOfText,
+                   font,
+                   fontScale,
+                   fontColor,
+                   thickness,
+                   lineType)
+
 
     cv.imshow('frame', padded_image)
     cv.imshow('dice', dice_img)
