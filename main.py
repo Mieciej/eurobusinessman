@@ -360,7 +360,6 @@ while cap.isOpened():
         if pawn_pos[i] !=-1:
             bottomLeftCornerOfText = (line_offset_x, line_height * (n_players) + line_offset_y)
             text = f"Player {player_names[i]}: {field_names[pawn_pos[i]]}"
-            print(player_names, i, text)
             n_players +=1
             cv.putText(padded_image, text,
                        bottomLeftCornerOfText,
