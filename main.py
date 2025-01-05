@@ -26,6 +26,8 @@ green_pawn_template = Template(cv.imread("green_pawn.png", cv.IMREAD_GRAYSCALE),
 
 blue_pawn_hard_template = Template(cv.imread("blue_pawn_hard.png", cv.IMREAD_GRAYSCALE), 32, 32)
 green_pawn_hard_template = Template(cv.imread("green_pawn_hard.png", cv.IMREAD_GRAYSCALE), 32, 32)
+blue_pawn_hard_close_template = Template(cv.imread("blue_pawn_hard_close.png", cv.IMREAD_GRAYSCALE), 32, 32)
+green_pawn_hard_close_template = Template(cv.imread("green_pawn_hard_close.png", cv.IMREAD_GRAYSCALE), 32, 32)
 
 pawn_templates = None
 board_normal_template = Template(cv.imread("board.png", cv.IMREAD_GRAYSCALE), 620, 620)
@@ -198,11 +200,11 @@ while cap.isOpened():
         min_val_hard, max_val_hard, min_loc_hard, max_loc_hard = cv.minMaxLoc(match)
         if min_val_normal < min_val_hard:
             board_template = board_normal_template
-            pawn_templates = [blue_pawn_template, red_pawn_template, green_pawn_template]
+            pawn_templates = [[blue_pawn_template], [red_pawn_template], [green_pawn_template]]
             print("The board is easy")
         else:
             board_template = board_hard_template
-            pawn_templates = [blue_pawn_hard_template, red_pawn_template, green_pawn_hard_template]
+            pawn_templates = [[blue_pawn_hard_template, blue_pawn_hard_close_template], [red_pawn_template], [green_pawn_hard_template, green_pawn_hard_close_template] ]
             print("The board is hard!")
 
     match = cv.matchTemplate(gray, board_template.img, cv.TM_SQDIFF)
@@ -229,7 +231,7 @@ while cap.isOpened():
     gray_red_board[mask==0] = 255
 
     lower_green = np.array([35, 40, 40])
-    upper_green = np.array([85, 255, 255])
+    upper_green = np.array([95, 255, 255])
     mask = cv.inRange(hsv_board, lower_green, upper_green)
     gray_green_board = gray_board.copy()
     gray_green_board[mask==0] = 255
@@ -260,30 +262,32 @@ while cap.isOpened():
         roll_votes[roll_votes_idx] = roll_vote
         roll_votes_idx = (roll_votes_idx + 1) % N_DICE_RESULT_VOTES
         roll_result = statistics.mode(roll_votes)
-    for i, (pawn_template, pawn_board) in enumerate(zip(pawn_templates, pawn_gray_boards)):
-        match = cv.matchTemplate(pawn_board, pawn_template.img, cv.TM_SQDIFF)
-        min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
-        pawn_top_left = min_loc
-        bottom_right = (pawn_top_left[0] + pawn_template.width, pawn_top_left[1] + pawn_template.height)
-        if min_val < PAWN_THRESHOLD:
-            cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
-            field_idx = get_field((pawn_top_left[0] + pawn_template.width/2,pawn_top_left[1] + pawn_template.height/2))
-            if field_idx != -1:
-                pawn_pos_votes[i][pawn_votes_idx[i]] = field_idx
-                pawn_votes_idx[i] = (pawn_votes_idx[i] + 1) % N_PAWN_VOTES
-                new_pos = statistics.mode(pawn_pos_votes[i])
-                if new_pos != pawn_pos[i]:
-                    if pawn_pos[i] != -1:
-                        roll = new_pos - pawn_pos[i]
-                        if roll < 0:
-                            roll = 40 + roll
-                        secs = elapsed_frames // 30
-                        mins = secs // 60
-                        secs %= 60
-                        time_str = f"[{mins:02d}:{secs:02d}]:"
-                        events.append(f"{time_str} Player {player_names[i]} rolled: {roll}")
-                        events.append(f"{time_str} Player {player_names[i]} moved from {field_names[pawn_pos[i]]} to {field_names[new_pos]}")
-                    pawn_pos[i] = new_pos
+    for i, (pts, pawn_board) in enumerate(zip(pawn_templates, pawn_gray_boards)):
+        for pawn_template in pts:
+            match = cv.matchTemplate(pawn_board, pawn_template.img, cv.TM_SQDIFF)
+            min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
+            pawn_top_left = min_loc
+            bottom_right = (pawn_top_left[0] + pawn_template.width, pawn_top_left[1] + pawn_template.height)
+            if min_val < PAWN_THRESHOLD:
+                cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
+                field_idx = get_field((pawn_top_left[0] + pawn_template.width/2,pawn_top_left[1] + pawn_template.height/2))
+                if field_idx != -1:
+                    pawn_pos_votes[i][pawn_votes_idx[i]] = field_idx
+                    pawn_votes_idx[i] = (pawn_votes_idx[i] + 1) % N_PAWN_VOTES
+                    new_pos = statistics.mode(pawn_pos_votes[i])
+                    if new_pos != pawn_pos[i]:
+                        if pawn_pos[i] != -1:
+                            roll = new_pos - pawn_pos[i]
+                            if roll < 0:
+                                roll = 40 + roll
+                            secs = elapsed_frames // 30
+                            mins = secs // 60
+                            secs %= 60
+                            time_str = f"[{mins:02d}:{secs:02d}]:"
+                            events.append(f"{time_str} Player {player_names[i]} rolled: {roll}")
+                            events.append(f"{time_str} Player {player_names[i]} moved from {field_names[pawn_pos[i]]} to {field_names[new_pos]}")
+                        pawn_pos[i] = new_pos
+                break
 
     pad_right = 800
     padded_image = cv.copyMakeBorder(rescaled, 0, 0, 0, pad_right, cv.BORDER_CONSTANT, None, (255, 255, 255))
@@ -344,7 +348,7 @@ while cap.isOpened():
 
     cv.imshow('frame', padded_image)
     cv.imshow('dice', dice_img)
-    cv.imshow('board', gray_blue_board)
+    cv.imshow('board', board_img)
     if cv.waitKey(1) == ord('q'):
         break
 
