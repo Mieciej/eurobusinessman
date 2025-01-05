@@ -277,31 +277,6 @@ while cap.isOpened():
                        thickness,
                        lineType)
 
-    # for i in range(2):
-    #     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
-    #     pawn_top_left = max_loc
-    #     bottom_right = (pawn_top_left[0] + pawn_template.width, pawn_top_left[1] + pawn_template.height)
-    #     cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
-    #     field_idx = get_field((pawn_top_left[0] + pawn_template.width/2,pawn_top_left[1] + pawn_template.height/2))
-    #     if field_idx != -1:
-    #         pawn_pos_votes[i][pawn_votes_idx[i]] = field_idx
-    #         pawn_votes_idx[i] = (pawn_votes_idx[i] + 1) % N_PAWN_VOTES
-    #         pawn_pos[i] = statistics.mode(pawn_pos_votes[i])
-    #     if pawn_pos[i] !=-1:
-    #         font = cv.FONT_HERSHEY_PLAIN
-    #         bottomLeftCornerOfText = (25, rescaled.shape[0] - 80)
-    #         fontScale = 2
-    #         fontColor = (255,255,255)
-    #         thickness = 1
-    #         lineType = 2
-    #         cv.putText(rescaled,f"Pawn Pos: {field_names[pawn_pos[i]]}",
-    #                    bottomLeftCornerOfText,
-    #                    font,
-    #                    fontScale,
-    #                    fontColor,
-    #                    thickness,
-    #                    lineType)
-
     cv.imshow('frame', padded_image)
     cv.imshow('dice', dice_img)
     if cv.waitKey(1) == ord('q'):
