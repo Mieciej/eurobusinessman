@@ -19,10 +19,15 @@ class Template:
 
 dice_template = Template(cv.imread("dice.png", cv.IMREAD_GRAYSCALE), 32, 32)
 dot_template = Template(cv.imread("dot.png", cv.IMREAD_GRAYSCALE), 5, 5)
+
 blue_pawn_template = Template(cv.imread("blue_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 red_pawn_template = Template(cv.imread("red_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 green_pawn_template = Template(cv.imread("green_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
-pawn_templates = [blue_pawn_template, red_pawn_template, green_pawn_template]
+
+blue_pawn_hard_template = Template(cv.imread("blue_pawn_hard.png", cv.IMREAD_GRAYSCALE), 32, 32)
+green_pawn_hard_template = Template(cv.imread("green_pawn_hard.png", cv.IMREAD_GRAYSCALE), 32, 32)
+
+pawn_templates = None
 board_normal_template = Template(cv.imread("board.png", cv.IMREAD_GRAYSCALE), 620, 620)
 board_hard_template = Template(cv.imread("board_hard.png", cv.IMREAD_GRAYSCALE), 604, 843)
 
@@ -193,9 +198,11 @@ while cap.isOpened():
         min_val_hard, max_val_hard, min_loc_hard, max_loc_hard = cv.minMaxLoc(match)
         if min_val_normal < min_val_hard:
             board_template = board_normal_template
+            pawn_templates = [blue_pawn_template, red_pawn_template, green_pawn_template]
             print("The board is easy")
         else:
             board_template = board_hard_template
+            pawn_templates = [blue_pawn_hard_template, red_pawn_template, green_pawn_hard_template]
             print("The board is hard!")
 
     match = cv.matchTemplate(gray, board_template.img, cv.TM_SQDIFF)
@@ -210,9 +217,9 @@ while cap.isOpened():
     mask = cv.inRange(hsv_board, lower_blue, upper_blue) 
     gray_blue_board = gray_board.copy()
     gray_blue_board[mask==0] = 255
+
     lower_red1 = np.array([0, 50, 50])
     upper_red1 = np.array([10, 255, 255])
-
     lower_red2 = np.array([170, 50, 50])
     upper_red2 = np.array([180, 255, 255])
     mask1 = cv.inRange(hsv_board, lower_red1, upper_red1)
