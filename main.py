@@ -187,13 +187,13 @@ while cap.isOpened():
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
     board_top_left = max_loc
     board_img = rescaled[ board_top_left[1] : board_top_left[1] + board_template.height, board_top_left[0]:board_top_left[0] + board_template.width]
-
+    gray_board = cv.cvtColor(board_img, cv.COLOR_BGR2GRAY)
     hsv_board = cv.cvtColor(board_img, cv.COLOR_BGR2HSV)
     lower_blue = np.array([90, 50, 50])
     upper_blue = np.array([130, 255, 255])
     mask = cv.inRange(hsv_board, lower_blue, upper_blue) 
-    blue_board = board_img.copy()
-    blue_board[mask==0] = (255,255,255)
+    gray_blue_board = gray_board.copy()
+    gray_blue_board[mask==0] = 255
     lower_red1 = np.array([0, 50, 50])
     upper_red1 = np.array([10, 255, 255])
 
@@ -202,19 +202,15 @@ while cap.isOpened():
     mask1 = cv.inRange(hsv_board, lower_red1, upper_red1)
     mask2 = cv.inRange(hsv_board, lower_red2, upper_red2)
     mask = cv.bitwise_or(mask1, mask2)
-    red_board = board_img.copy()
-    red_board[mask==0] = (255,255,255)
+    gray_red_board = gray_board.copy()
+    gray_red_board[mask==0] = 255
 
     lower_green = np.array([35, 40, 40])
     upper_green = np.array([85, 255, 255])
     mask = cv.inRange(hsv_board, lower_green, upper_green)
-    green_board = board_img.copy()
-    green_board[mask==0] = (255,255,255)
+    gray_green_board = gray_board.copy()
+    gray_green_board[mask==0] = 255
 
-    gray_board = cv.cvtColor(board_img, cv.COLOR_BGR2GRAY)
-    gray_blue_board = cv.cvtColor(blue_board, cv.COLOR_BGR2GRAY)
-    gray_red_board = cv.cvtColor(red_board, cv.COLOR_BGR2GRAY)
-    gray_green_board = cv.cvtColor(green_board, cv.COLOR_BGR2GRAY)
     pawn_gray_boards = [gray_blue_board, gray_red_board, gray_green_board]
 
     match = cv.matchTemplate(gray_board, dice_template.img, cv.TM_CCORR_NORMED)
