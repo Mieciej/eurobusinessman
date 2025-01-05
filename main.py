@@ -76,6 +76,16 @@ field_names = [ "1. START",
                 "40. WIEDEN"
         ]
 
+red_chance_fields = [7, 22, 36]
+blue_chance_fields = [2, 17, 33]
+tax_field = 38
+paid_parking = 4
+free_parking = 20
+go_to_prison = 30
+prison = 10
+special_fields = red_chance_fields + blue_chance_fields + [tax_field, paid_parking, free_parking, go_to_prison, prison, 0]
+field_owner = [-1] * 40
+
 
 def get_field_normal(pos):
     x, y = pos
@@ -247,10 +257,12 @@ def get_hard_field(pos):
 
 get_field = None
 
-cap = cv.VideoCapture("scaled_hard_output6.mp4")
+cap = cv.VideoCapture("scaled_output.mp4")
 
 events = []
-
+pawns_ = [False, False, False]
+pawn_playing = [False, False, False]
+pawn_started_on_start_field = [False, False, False]
 
 player_names = [ "blue",
                  "red",
@@ -260,12 +272,23 @@ player_names = [ "blue",
 elapsed_frames = 0
 
 board_template = None
+game_start = False
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         print("Can't receive frame. Exiting ...")
         break
     elapsed_frames +=1
+    secs = elapsed_frames // 30
+    mins = secs // 60
+    secs %= 60
+    time_str = f"[{mins:02d}:{secs:02d}]:"
+    if not game_start:
+        n_playing = sum(pawn_playing)
+        if n_playing > 1:
+            game_start = n_playing == sum(pawn_started_on_start_field)
+            if game_start:
+                events.append(f"{time_str} game started")
     # rescaled = cv.resize(frame, None, fx=0.3, fy=0.3, interpolation = cv.INTER_CUBIC)
     rescaled = frame
     gray = cv.cvtColor(rescaled, cv.COLOR_BGR2GRAY)
@@ -327,20 +350,43 @@ while cap.isOpened():
                 cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
                 field_idx = get_field((pawn_top_left[0] + pawn_template.width/2,pawn_top_left[1] + pawn_template.height/2))
                 if field_idx != -1:
+                    pawn_playing[i] = True
                     pawn_pos_votes[i][pawn_votes_idx[i]] = field_idx
                     pawn_votes_idx[i] = (pawn_votes_idx[i] + 1) % N_PAWN_VOTES
                     new_pos = statistics.mode(pawn_pos_votes[i])
                     if new_pos != pawn_pos[i]:
                         if pawn_pos[i] != -1:
                             roll = new_pos - pawn_pos[i]
+                            went_throug_start = False
                             if roll < 0:
+                                went_throug_start = True
                                 roll = 40 + roll
-                            secs = elapsed_frames // 30
-                            mins = secs // 60
-                            secs %= 60
-                            time_str = f"[{mins:02d}:{secs:02d}]:"
-                            events.append(f"{time_str} Player {player_names[i]} rolled: {roll}")
+                            if 2 <= roll and roll <= 12:
+                                events.append(f"{time_str} Player {player_names[i]} rolled: {roll}")
                             events.append(f"{time_str} Player {player_names[i]} moved from {field_names[pawn_pos[i]]} to {field_names[new_pos]}")
+                            if went_throug_start:
+                                events.append(f"{time_str} Player {player_names[i]} went through {field_names[0]} and received $200")
+                            if new_pos in blue_chance_fields:
+                                events.append(f"{time_str} Player {player_names[i]} has to draw a blue chance card")
+                            if new_pos in red_chance_fields:
+                                events.append(f"{time_str} Player {player_names[i]} has to draw a red chance card")
+                            if new_pos == tax_field:
+                                    events.append(f"{time_str} Player {player_names[i]} paid $200 tax")
+
+                            if new_pos == paid_parking:
+                                    events.append(f"{time_str} Player {player_names[i]} paid $400 parking fee")
+
+                            if game_start and new_pos not in special_fields:
+                                owner = field_owner[new_pos]
+                                if  owner == -1:
+                                    events.append(f"{time_str} Player {player_names[i]} bought {field_names[new_pos]}")
+                                    field_owner[new_pos] = i
+                                elif owner != i:
+                                    events.append(f"{time_str} Player {player_names[i]} has to pay rent to player {player_names[owner]}")
+                                elif owner == i:
+                                    events.append(f"{time_str} Player {player_names[i]} is visting their property")
+                        else:
+                            pawn_started_on_start_field[i] = new_pos == 0
                         pawn_pos[i] = new_pos
                 break
 
