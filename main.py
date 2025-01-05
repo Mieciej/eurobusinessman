@@ -7,7 +7,9 @@ from dataclasses import dataclass
 ## PARAMETERS
 DOT_THRESHOLD  = 0.73 # (0, 1.0)
 N_DICE_RESULT_VOTES = 101 # How many results are used to determine dice result
-N_PAWN_VOTES = 101
+
+N_PAWN_VOTES = 81
+PAWN_THRESHOLD = 2000000
 
 @dataclass
 class Template:
@@ -27,9 +29,9 @@ roll_votes = [0] * N_DICE_RESULT_VOTES
 roll_votes_idx = 0
 roll_result = -1
 
-pawn_pos_votes = [[-1] * N_PAWN_VOTES, [-1] * N_PAWN_VOTES]
-pawn_votes_idx = [0,0]
-pawn_pos = [-1, -1]
+pawn_pos_votes = [[-1] * N_PAWN_VOTES, [-1] * N_PAWN_VOTES, [-1] * N_PAWN_VOTES]
+pawn_votes_idx = [0, 0, 0]
+pawn_pos = [-1, -1, -1]
 
 field_names = [ "1. START",
                 "2. SALONIKI",
@@ -159,7 +161,7 @@ def get_field(pos):
     else:
         return -1
 
-cap = cv.VideoCapture("scaled_med_output0.mp4")
+cap = cv.VideoCapture("scaled_rot_med_output0.mp4")
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -197,7 +199,6 @@ while cap.isOpened():
     green_board = board_img.copy()
     green_board[mask==0] = (255,255,255)
 
-
     gray_board = cv.cvtColor(board_img, cv.COLOR_BGR2GRAY)
     gray_blue_board = cv.cvtColor(blue_board, cv.COLOR_BGR2GRAY)
     gray_red_board = cv.cvtColor(red_board, cv.COLOR_BGR2GRAY)
@@ -228,27 +229,53 @@ while cap.isOpened():
         roll_votes[roll_votes_idx] = roll_vote
         roll_votes_idx = (roll_votes_idx + 1) % N_DICE_RESULT_VOTES
         roll_result = statistics.mode(roll_votes)
+    for i, (pawn_template, pawn_board) in enumerate(zip(pawn_templates, pawn_gray_boards)):
+        match = cv.matchTemplate(pawn_board, pawn_template.img, cv.TM_SQDIFF)
+        min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
+        pawn_top_left = min_loc
+        bottom_right = (pawn_top_left[0] + pawn_template.width, pawn_top_left[1] + pawn_template.height)
+        if min_val < PAWN_THRESHOLD:
+            cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
+            field_idx = get_field((pawn_top_left[0] + pawn_template.width/2,pawn_top_left[1] + pawn_template.height/2))
+            if field_idx != -1:
+                pawn_pos_votes[i][pawn_votes_idx[i]] = field_idx
+                pawn_votes_idx[i] = (pawn_votes_idx[i] + 1) % N_PAWN_VOTES
+                pawn_pos[i] = statistics.mode(pawn_pos_votes[i])
+
+    pad_right = 800
+    padded_image = cv.copyMakeBorder(rescaled, 0, 0, 0, pad_right, cv.BORDER_CONSTANT, None, (255, 255, 255))
+    font = cv.FONT_HERSHEY_PLAIN
+    fontScale = 2
+    fontColor = (15,15,15)
+    thickness = 1
+    line_height = int( padded_image.shape[0] * 0.03)
+    line_offset_y = line_height
+    line_offset_x = int(rescaled.shape[1] + 0.05 * pad_right)
+    lineType = 1
+
     if roll_result >= 1:
-        font = cv.FONT_HERSHEY_PLAIN
-        bottomLeftCornerOfText = (25, rescaled.shape[0] - 50)
-        fontScale = 2
-        fontColor = (255,255,255)
-        thickness = 1
-        lineType = 2
-        cv.putText(rescaled,f"Roll Result: {roll_result}",
+        bottomLeftCornerOfText = (line_offset_x, line_offset_y)
+        cv.putText(padded_image,f"Roll Result: {roll_result}",
                    bottomLeftCornerOfText,
                    font,
                    fontScale,
                    fontColor,
                    thickness,
                    lineType)
-    for pawn_template, pawn_board in zip(pawn_templates, pawn_gray_boards):
-        match = cv.matchTemplate(pawn_board, pawn_template.img, cv.TM_SQDIFF)
-        min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
-        pawn_top_left = min_loc
-        bottom_right = (pawn_top_left[0] + pawn_template.width, pawn_top_left[1] + pawn_template.height)
-        if min_val < 2000000:
-            cv.rectangle(board_img, pawn_top_left, bottom_right, 255, 1)
+    n_players = 1
+    for i in range(3):
+        text : str
+        if pawn_pos[i] !=-1:
+            bottomLeftCornerOfText = (line_offset_x, line_height * (n_players) + line_offset_y)
+            text = f"Player {n_players}: {field_names[pawn_pos[i]]}"
+            n_players +=1
+            cv.putText(padded_image, text,
+                       bottomLeftCornerOfText,
+                       font,
+                       fontScale,
+                       fontColor,
+                       thickness,
+                       lineType)
 
     # for i in range(2):
     #     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
@@ -275,8 +302,7 @@ while cap.isOpened():
     #                    thickness,
     #                    lineType)
 
-    cv.imshow('frame', frame)
-    cv.imshow('board', green_board)
+    cv.imshow('frame', padded_image)
     cv.imshow('dice', dice_img)
     if cv.waitKey(1) == ord('q'):
         break
