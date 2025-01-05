@@ -23,7 +23,8 @@ blue_pawn_template = Template(cv.imread("blue_pawn.png", cv.IMREAD_GRAYSCALE), 3
 red_pawn_template = Template(cv.imread("red_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 green_pawn_template = Template(cv.imread("green_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 pawn_templates = [blue_pawn_template, red_pawn_template, green_pawn_template]
-board_template = Template(cv.imread("board.png", cv.IMREAD_GRAYSCALE), 620, 620)
+board_normal_template = Template(cv.imread("board.png", cv.IMREAD_GRAYSCALE), 620, 620)
+board_hard_template = Template(cv.imread("board_hard.png", cv.IMREAD_GRAYSCALE), 604, 843)
 
 roll_votes = [0] * N_DICE_RESULT_VOTES
 roll_votes_idx = 0
@@ -162,7 +163,7 @@ def get_field(pos):
     else:
         return -1
 
-cap = cv.VideoCapture("scaled_output.mp4")
+cap = cv.VideoCapture("scaled_hard_output6.mp4")
 
 events = []
 
@@ -173,6 +174,8 @@ player_names = [ "blue",
         ]
 
 elapsed_frames = 0
+
+board_template = None
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -183,10 +186,23 @@ while cap.isOpened():
     rescaled = frame
     gray = cv.cvtColor(rescaled, cv.COLOR_BGR2GRAY)
 
-    match = cv.matchTemplate(gray, board_template.img, cv.TM_CCORR_NORMED)
+    if not board_template:
+        match = cv.matchTemplate(gray, board_normal_template.img, cv.TM_SQDIFF)
+        min_val_normal, max_val_normal, min_loc_normal, max_loc_normal = cv.minMaxLoc(match)
+        match = cv.matchTemplate(gray, board_hard_template.img, cv.TM_SQDIFF)
+        min_val_hard, max_val_hard, min_loc_hard, max_loc_hard = cv.minMaxLoc(match)
+        if min_val_normal < min_val_hard:
+            board_template = board_normal_template
+            print("The board is easy")
+        else:
+            board_template = board_hard_template
+            print("The board is hard!")
+
+    match = cv.matchTemplate(gray, board_template.img, cv.TM_SQDIFF)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
-    board_top_left = max_loc
+    board_top_left = min_loc
     board_img = rescaled[ board_top_left[1] : board_top_left[1] + board_template.height, board_top_left[0]:board_top_left[0] + board_template.width]
+
     gray_board = cv.cvtColor(board_img, cv.COLOR_BGR2GRAY)
     hsv_board = cv.cvtColor(board_img, cv.COLOR_BGR2HSV)
     lower_blue = np.array([90, 50, 50])
@@ -321,6 +337,7 @@ while cap.isOpened():
 
     cv.imshow('frame', padded_image)
     cv.imshow('dice', dice_img)
+    cv.imshow('board', gray_blue_board)
     if cv.waitKey(1) == ord('q'):
         break
 
