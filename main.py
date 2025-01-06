@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from cards_detection import detect_chance_cards
 
 ## PARAMETERS
-N_PAWN_VOTES = 81
+N_PAWN_VOTES = 101
 PAWN_THRESHOLD = 2000000
 
 @dataclass
@@ -19,8 +19,7 @@ class Template:
 blue_pawn_template = Template(cv.imread("blue_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 red_pawn_template = Template(cv.imread("red_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 green_pawn_template = Template(cv.imread("green_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
-blue_pawn_onblue_template = Template(cv.imread("blue_pawn_onblue.png", cv.IMREAD_GRAYSCALE), 32, 32)
-blue_pawn_onblue2_template = Template(cv.imread("blue_pawn_onblue2.png", cv.IMREAD_GRAYSCALE), 32, 32)
+blue_pawn_on_blue_template = Template(cv.imread("blue_pawn_on_blue.png", cv.IMREAD_GRAYSCALE), 18, 18)
 
 blue_pawn_hard_template = Template(cv.imread("blue_pawn_hard.png", cv.IMREAD_GRAYSCALE), 32, 32)
 green_pawn_hard_template = Template(cv.imread("green_pawn_hard.png", cv.IMREAD_GRAYSCALE), 32, 32)
@@ -388,7 +387,16 @@ def get_field_hard(pos):
 get_field = None
 get_field_coords = None
 
-cap = cv.VideoCapture("output6.mp4")
+cap = cv.VideoCapture("output1.mp4")
+
+width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH) * 0.3) + 800
+height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT) * 0.3)
+fps = cap.get(cv.CAP_PROP_FPS)
+total_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
+
+fourcc = cv.VideoWriter_fourcc(*'mp4v')
+out = cv.VideoWriter('output_with_detection.mp4', fourcc, fps, (width, height))
+
 
 events = []
 pawn_playing = [False, False, False]
@@ -405,6 +413,10 @@ game_start = False
 
 ret, frame = cap.read()
 rescaled = cv.resize(frame, None, fx=0.3, fy=0.3, interpolation=cv.INTER_CUBIC)
+
+# save the frame
+cv.imwrite('frame.png', rescaled)
+
 # rescaled = cv.flip(rescaled, -1)
 gray = cv.cvtColor(rescaled, cv.COLOR_BGR2GRAY)
 match = cv.matchTemplate(gray, board_easy_template.img, cv.TM_SQDIFF)
@@ -413,7 +425,6 @@ match = cv.matchTemplate(gray, board_medium_template.img, cv.TM_SQDIFF)
 min_val_medium, _, _, _ = cv.minMaxLoc(match)
 match = cv.matchTemplate(gray, board_hard_template.img, cv.TM_SQDIFF)
 min_val_hard, _, _, _ = cv.minMaxLoc(match)
-print(min_val_easy, min_val_medium, min_val_hard)
 if min_val_easy <= min_val_medium and min_val_easy <= min_val_hard:
     board_template = board_easy_template
     pawn_templates = [[blue_pawn_template], [red_pawn_template], [green_pawn_template]]
@@ -422,7 +433,7 @@ if min_val_easy <= min_val_medium and min_val_easy <= min_val_hard:
     print("The board is easy")
 elif min_val_medium < min_val_easy and min_val_medium < min_val_hard:
     board_template = board_medium_template
-    pawn_templates = [[blue_pawn_template, blue_pawn_onblue_template, blue_pawn_onblue2_template], [red_pawn_template], [green_pawn_template]]
+    pawn_templates = [[blue_pawn_template, blue_pawn_on_blue_template], [red_pawn_template], [green_pawn_template]]
     get_field = get_field_medium
     get_field_coords = get_field_coords_medium
     print("The board is medium")
@@ -501,6 +512,7 @@ while cap.isOpened():
     gray_green_board = gray_board.copy()
     gray_green_board[mask==0] = 255
 
+    
     pawn_gray_boards = [gray_blue_board, gray_red_board, gray_green_board]
 
     for i, (pts, pawn_board) in enumerate(zip(pawn_templates, pawn_gray_boards)):
@@ -645,7 +657,8 @@ while cap.isOpened():
             cv.rectangle(overlay, field_upper_left, field_bottom_right, fontPlayerColor[i], -1)
             cv.addWeighted(overlay, alpha, padded_image, 1 - alpha, 0, padded_image)
             
-            bottomLeftCornerOfText = (line_offset_x + 300 * (i % 2), line_height * (j + 2) + 600)
+            column = 300 if n_players % 2 == 0 else 0
+            bottomLeftCornerOfText = (line_offset_x + column, line_height * (j + 2) + 600)
             cv.putText(padded_image, field_names[field],
                        bottomLeftCornerOfText,
                        font,
@@ -655,10 +668,13 @@ while cap.isOpened():
                        lineType)
         n_players += 1
     
-    cv.imshow('frame', padded_image)
+    out.write(padded_image)
+    
+    # cv.imshow('frame', padded_image)
     if cv.waitKey(1) == ord('q'):
         break
 
+out.release()
 cap.release()
 cv.destroyAllWindows()
 
