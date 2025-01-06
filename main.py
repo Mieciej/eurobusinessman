@@ -3,6 +3,7 @@ import cv2 as cv
 import glob
 import statistics
 from dataclasses import dataclass
+from cards_detection import detect_chance_cards
 
 ## PARAMETERS
 N_PAWN_VOTES = 81
@@ -18,6 +19,8 @@ class Template:
 blue_pawn_template = Template(cv.imread("blue_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 red_pawn_template = Template(cv.imread("red_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
 green_pawn_template = Template(cv.imread("green_pawn.png", cv.IMREAD_GRAYSCALE), 32, 32)
+blue_pawn_onblue_template = Template(cv.imread("blue_pawn_onblue.png", cv.IMREAD_GRAYSCALE), 32, 32)
+blue_pawn_onblue2_template = Template(cv.imread("blue_pawn_onblue2.png", cv.IMREAD_GRAYSCALE), 32, 32)
 
 blue_pawn_hard_template = Template(cv.imread("blue_pawn_hard.png", cv.IMREAD_GRAYSCALE), 32, 32)
 green_pawn_hard_template = Template(cv.imread("green_pawn_hard.png", cv.IMREAD_GRAYSCALE), 32, 32)
@@ -25,7 +28,8 @@ blue_pawn_hard_close_template = Template(cv.imread("blue_pawn_hard_close.png", c
 green_pawn_hard_close_template = Template(cv.imread("green_pawn_hard_close.png", cv.IMREAD_GRAYSCALE), 32, 32)
 
 pawn_templates = None
-board_normal_template = Template(cv.imread("board.png", cv.IMREAD_GRAYSCALE), 620, 620)
+board_easy_template = Template(cv.imread("board.png", cv.IMREAD_GRAYSCALE), 620, 620)
+board_medium_template = Template(cv.imread("board_medium.png", cv.IMREAD_GRAYSCALE), 630, 610)
 board_hard_template = Template(cv.imread("board_hard.png", cv.IMREAD_GRAYSCALE), 604, 843)
 
 
@@ -85,9 +89,50 @@ go_to_prison = 30
 prison = 10
 special_fields = red_chance_fields + blue_chance_fields + [tax_field, paid_parking, free_parking, go_to_prison, prison, 0]
 field_owner = [-1] * 40
+fields_owned = {'blue': [], 'red': [], 'green': []}
 
+def get_field_coords_easy(field_idx):
+    field_coords = [
+        ((17, 532), (97, 611)), ((16, 486), (78, 526)), ((15, 439), (97, 480)), ((14, 392), (77, 433)), ((13, 345), (95, 387)),
+        ((11, 298), (94, 340)), ((10, 250), (75, 292)), ((10, 203), (93, 245)), ((7, 154), (72, 196)), ((6, 105), (71, 148)),
+        ((4, 14), (90, 100)), ((93, 14), (137, 79)), ((142, 13), (186, 99)), ((190, 13), (234, 79)), ((238, 13), (282, 79)),
+        ((288, 13), (330, 98)), ((336, 12), (379, 78)), ((385, 13), (427, 98)), ((434, 12), (476, 78)), ((482, 12), (524, 78)),
+        ((531, 11), (613, 97)), ((549, 103), (612, 146)), ((549, 153), (611, 195)), ((548, 201), (610, 243)), ((545, 249), (608, 291)),
+        ((526, 298), (608, 339)), ((545, 345), (607, 386)), ((544, 392), (606, 433)), ((524, 439), (605, 480)), ((543, 487), (605, 527)),
+        ((523, 532), (603, 612)), ((476, 550), (517, 611)), ((429, 550), (470, 612)), ((382, 531), (423, 611)), ((336, 550), (377, 611)),
+        ((289, 531), (330, 612)), ((242, 550), (284, 611)), ((195, 550), (237, 610)), ((149, 531), (191, 611)), ((102, 550), (144, 611))
+    ]
+    return field_coords[field_idx]
 
-def get_field_normal(pos):
+def get_field_coords_medium(field_idx):
+    field_coords = [
+        ((17, 506), (102, 591)), ((19, 458), (104, 506)), ((20, 411), (104, 458)), ((22, 364), (105, 411)), ((23, 317), (106, 364)),
+        ((25, 270), (108, 317)), ((26, 225), (109, 271)), ((27, 181), (110, 225)), ((29, 133), (112, 179)), ((29, 87), (112, 133)),
+        ((30, 4), (113, 86)), ((113, 4), (160, 86)), ((160, 4), (205, 86)), ((205, 5), (250, 87)), ((250, 5), (296, 87)),
+        ((296, 5), (342, 87)), ((342, 6), (388, 88)), ((388, 6), (434, 88)), ((434, 6), (480, 88)), ((480, 7), (526, 89)),
+        ((526, 8), (611, 90)), ((526, 90), (611, 137)), ((526, 137), (611, 182)), ((526, 182), (611, 229)), ((526, 229), (611, 277)),
+        ((526, 277), (611, 322)), ((526, 322), (611, 371)), ((526, 371), (611, 416)), ((526, 416), (611, 465)), ((526, 465), (611, 514)),
+        ((526, 514), (611, 600)), ((481, 514), (527, 600)), ((432, 513), (481, 599)), ((385, 513), (432, 598)), ((338, 512), (385, 598)),
+        ((291, 511), (338, 597)), ((244, 510), (291, 596)), ((196, 509), (244, 595)), ((150, 509), (196, 594)), ((102, 508), (150, 593))
+    ]
+    coords = field_coords[field_idx]
+    coords = ((coords[0][0], coords[0][1] + 15), (coords[1][0], coords[1][1] + 15))
+    return coords
+
+def get_field_coords_hard(field_idx):
+    field_coords = [
+        ((508, 118), (557, 185)), ((520, 197), (557, 240)), ((509, 239), (558, 281)), ((522, 284), (559, 322)), ((510, 327), (560, 364)),
+        ((510, 370), (560, 406)), ((524, 413), (560, 448)), ((512, 458), (560, 490)), ((525, 500), (562, 531)), ((525, 544), (563, 574)),
+        ((512, 591), (564, 653)), ((480, 618), (510, 672)), ((448, 608), (478, 683)), ((411, 637), (444, 693)), ((372, 648), (409, 705)),
+        ((331, 638), (368, 719)), ((286, 671), (326, 732)), ((239, 660), (281, 748)), ((185, 712), (232, 764)), ((127, 712), (179, 781)),
+        ((9, 716), (121, 799)), ((9, 648), (98, 689)), ((10, 580), (123, 621)), ((12, 580), (98, 561)), ((13, 447), (101, 498)),
+        ((14, 384), (126, 435)), ((15, 316), (103, 374)), ((17, 251), (105, 313)), ((19, 188), (128, 253)), ((22, 123), (105, 191)),
+        ((22, 8), (129, 134)), ((136, 34), (184, 119)), ((191, 46), (235, 128)), ((241, 57), (282, 158)), ((288, 68), (326, 144)),
+        ((331, 77), (367, 170)), ((372, 88), (405, 176)), ((409, 95), (441, 163)), ((444, 103), (474, 186)), ((476, 110), (506, 174))
+    ]
+    return field_coords[field_idx]
+
+def get_field_easy(pos):
     x, y = pos
     if 17 <= x and 532 <= y and x <= 97  and y <= 611:
         return 0
@@ -172,7 +217,92 @@ def get_field_normal(pos):
     else:
         return -1
 
-def get_hard_field(pos):
+def get_field_medium(pos):
+    x, y = pos
+    if 17 <= x and 506 <= y and x <= 102  and y <= 591:
+        return 0
+    elif 19 <= x and 458 <= y and x <= 104  and y <= 506:
+        return 1
+    elif 20 <= x and 411 <= y and x <= 104  and y <= 458:
+        return 2
+    elif 22 <= x and 364 <= y and x <= 105  and y <= 411:
+        return 3
+    elif 23 <= x and 317 <= y and x <= 106  and y <= 364:
+        return 4
+    elif 25 <= x and 270 <= y and x <= 108  and y <= 317:
+        return 5
+    elif 26 <= x and 225 <= y and x <= 109  and y <= 271:
+        return 6
+    elif 27 <= x and 181 <= y and x <= 110  and y <= 225:
+        return 7
+    elif 29 <= x and 133 <= y and x <= 112  and y <= 179:
+        return 8
+    elif 29 <= x and 87 <= y and x <= 112  and y <= 133:
+        return 9
+    elif 30 <= x and 4 <= y and x <= 113  and y <= 86:
+        return 10
+    elif 113 <= x and 4 <= y and x <= 160  and y <= 86:
+        return 11
+    elif 160 <= x and 4 <= y and x <= 205  and y <= 86:
+        return 12
+    elif 205 <= x and 5 <= y and x <= 250  and y <= 87:
+        return 13
+    elif 250 <= x and 5 <= y and x <= 296  and y <= 87:
+        return 14
+    elif 296 <= x and 5 <= y and x <= 342  and y <= 87:
+        return 15
+    elif 342 <= x and 6 <= y and x <= 388  and y <= 88:
+        return 16
+    elif 388 <= x and 6 <= y and x <= 434  and y <= 88:
+        return 17
+    elif 434 <= x and 6 <= y and x <= 480  and y <= 88:
+        return 18
+    elif 480 <= x and 7 <= y and x <= 526  and y <= 89:
+        return 19
+    elif 526 <= x and 8 <= y and x <= 611  and y <= 90:
+        return 20
+    elif 526 <= x and 90 <= y and x <= 611  and y <= 137:
+        return 21
+    elif 526 <= x and 137 <= y and x <= 611  and y <= 182:
+        return 22
+    elif 526 <= x and 182 <= y and x <= 611  and y <= 229:
+        return 23
+    elif 526 <= x and 229 <= y and x <= 611  and y <= 277:
+        return 24
+    elif 526 <= x and 277 <= y and x <= 611  and y <= 322:
+        return 25
+    elif 526 <= x and 322 <= y and x <= 611  and y <= 371:
+        return 26
+    elif 526 <= x and 371 <= y and x <= 611  and y <= 416:
+        return 27
+    elif 526 <= x and 416 <= y and x <= 611  and y <= 465:
+        return 28
+    elif 526 <= x and 465 <= y and x <= 611  and y <= 514:
+        return 29
+    elif 526 <= x and 514 <= y and x <= 611  and y <= 600:
+        return 30
+    elif 481 <= x and 514 <= y and x <= 527  and y <= 600:
+        return 31
+    elif 432 <= x and 513 <= y and x <= 481  and y <= 599:
+        return 32
+    elif 385 <= x and 513 <= y and x <= 432  and y <= 598:
+        return 33
+    elif 338 <= x and 512 <= y and x <= 385  and y <= 598:
+        return 34
+    elif 291 <= x and 511 <= y and x <= 338  and y <= 597:
+        return 35
+    elif 244 <= x and 510 <= y and x <= 291  and y <= 596:
+        return 36
+    elif 196 <= x and 509 <= y and x <= 244  and y <= 595:
+        return 37
+    elif 150 <= x and 509 <= y and x <= 196  and y <= 594:
+        return 38
+    elif 102 <= x and 508 <= y and x <= 150  and y <= 593:
+        return 39
+    else:
+        return -1
+
+def get_field_hard(pos):
     x, y = pos
     if 508 <= x and 118 <= y and x <= 557 and y <= 185:
         return 0
@@ -256,23 +386,55 @@ def get_hard_field(pos):
         return 39
 
 get_field = None
+get_field_coords = None
 
-cap = cv.VideoCapture("scaled_output.mp4")
+cap = cv.VideoCapture("output6.mp4")
 
 events = []
-pawns_ = [False, False, False]
 pawn_playing = [False, False, False]
 pawn_started_on_start_field = [False, False, False]
 
 player_names = [ "blue",
                  "red",
-                 "green"
-        ]
+                 "green"]
 
 elapsed_frames = 0
-
 board_template = None
 game_start = False
+
+
+ret, frame = cap.read()
+rescaled = cv.resize(frame, None, fx=0.3, fy=0.3, interpolation=cv.INTER_CUBIC)
+# rescaled = cv.flip(rescaled, -1)
+gray = cv.cvtColor(rescaled, cv.COLOR_BGR2GRAY)
+match = cv.matchTemplate(gray, board_easy_template.img, cv.TM_SQDIFF)
+min_val_easy, _, _, _ = cv.minMaxLoc(match)
+match = cv.matchTemplate(gray, board_medium_template.img, cv.TM_SQDIFF)
+min_val_medium, _, _, _ = cv.minMaxLoc(match)
+match = cv.matchTemplate(gray, board_hard_template.img, cv.TM_SQDIFF)
+min_val_hard, _, _, _ = cv.minMaxLoc(match)
+print(min_val_easy, min_val_medium, min_val_hard)
+if min_val_easy <= min_val_medium and min_val_easy <= min_val_hard:
+    board_template = board_easy_template
+    pawn_templates = [[blue_pawn_template], [red_pawn_template], [green_pawn_template]]
+    get_field = get_field_easy
+    get_field_coords = get_field_coords_easy
+    print("The board is easy")
+elif min_val_medium < min_val_easy and min_val_medium < min_val_hard:
+    board_template = board_medium_template
+    pawn_templates = [[blue_pawn_template, blue_pawn_onblue_template, blue_pawn_onblue2_template], [red_pawn_template], [green_pawn_template]]
+    get_field = get_field_medium
+    get_field_coords = get_field_coords_medium
+    print("The board is medium")
+else:
+    board_template = board_hard_template
+    pawn_templates = [[blue_pawn_hard_template, blue_pawn_hard_close_template], [red_pawn_template], [green_pawn_hard_template, green_pawn_hard_close_template] ]
+    get_field = get_field_hard
+    get_field_coords = get_field_coords_hard
+    print("The board is hard!")
+
+prev_board_top_left = None
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -289,29 +451,30 @@ while cap.isOpened():
             game_start = n_playing == sum(pawn_started_on_start_field)
             if game_start:
                 events.append(f"{time_str} game started")
-    # rescaled = cv.resize(frame, None, fx=0.3, fy=0.3, interpolation = cv.INTER_CUBIC)
-    rescaled = frame
-    gray = cv.cvtColor(rescaled, cv.COLOR_BGR2GRAY)
 
-    if not board_template:
-        match = cv.matchTemplate(gray, board_normal_template.img, cv.TM_SQDIFF)
-        min_val_normal, max_val_normal, min_loc_normal, max_loc_normal = cv.minMaxLoc(match)
-        match = cv.matchTemplate(gray, board_hard_template.img, cv.TM_SQDIFF)
-        min_val_hard, max_val_hard, min_loc_hard, max_loc_hard = cv.minMaxLoc(match)
-        if min_val_normal < min_val_hard:
-            board_template = board_normal_template
-            pawn_templates = [[blue_pawn_template], [red_pawn_template], [green_pawn_template]]
-            get_field = get_field_normal
-            print("The board is easy")
-        else:
-            board_template = board_hard_template
-            pawn_templates = [[blue_pawn_hard_template, blue_pawn_hard_close_template], [red_pawn_template], [green_pawn_hard_template, green_pawn_hard_close_template] ]
-            get_field = get_hard_field
-            print("The board is hard!")
+    rescaled = cv.resize(frame, None, fx=0.3, fy=0.3, interpolation=cv.INTER_CUBIC)
+    if get_field == get_field_medium:
+        rescaled = cv.flip(rescaled, -1)
+
+    gray = cv.cvtColor(rescaled, cv.COLOR_BGR2GRAY)
+    
+    rescaled = detect_chance_cards(rescaled)
 
     match = cv.matchTemplate(gray, board_template.img, cv.TM_SQDIFF)
     min_val, max_val, min_loc, max_loc = cv.minMaxLoc(match)
-    board_top_left = min_loc
+    current_board_top_left = min_loc
+    
+    if prev_board_top_left is not None:
+        dx = current_board_top_left[0] - prev_board_top_left[0]
+        dy = current_board_top_left[1] - prev_board_top_left[1]
+        if abs(dx) > 100 or abs(dy) > 100:
+            current_board_top_left = prev_board_top_left
+        else:
+            prev_board_top_left = current_board_top_left
+    else:
+        prev_board_top_left = current_board_top_left
+    
+    board_top_left = current_board_top_left
     board_img = rescaled[ board_top_left[1] : board_top_left[1] + board_template.height, board_top_left[0]:board_top_left[0] + board_template.width]
 
     gray_board = cv.cvtColor(board_img, cv.COLOR_BGR2GRAY)
@@ -365,22 +528,23 @@ while cap.isOpened():
                                 events.append(f"{time_str} Player {player_names[i]} rolled: {roll}")
                             events.append(f"{time_str} Player {player_names[i]} moved from {field_names[pawn_pos[i]]} to {field_names[new_pos]}")
                             if went_throug_start:
-                                events.append(f"{time_str} Player {player_names[i]} went through {field_names[0]} and received $200")
+                                events.append(f"{time_str} Player {player_names[i]} went through {field_names[0]} and received $400")
                             if new_pos in blue_chance_fields:
                                 events.append(f"{time_str} Player {player_names[i]} has to draw a blue chance card")
                             if new_pos in red_chance_fields:
                                 events.append(f"{time_str} Player {player_names[i]} has to draw a red chance card")
                             if new_pos == tax_field:
-                                    events.append(f"{time_str} Player {player_names[i]} paid $200 tax")
+                                events.append(f"{time_str} Player {player_names[i]} paid $200 tax")
 
                             if new_pos == paid_parking:
-                                    events.append(f"{time_str} Player {player_names[i]} paid $400 parking fee")
+                                events.append(f"{time_str} Player {player_names[i]} paid $400 parking fee")
 
                             if game_start and new_pos not in special_fields:
                                 owner = field_owner[new_pos]
                                 if  owner == -1:
                                     events.append(f"{time_str} Player {player_names[i]} bought {field_names[new_pos]}")
                                     field_owner[new_pos] = i
+                                    fields_owned[player_names[i]].append(new_pos)
                                 elif owner != i:
                                     events.append(f"{time_str} Player {player_names[i]} has to pay rent to player {player_names[owner]}")
                                 elif owner == i:
@@ -395,7 +559,9 @@ while cap.isOpened():
     font = cv.FONT_HERSHEY_PLAIN
     fontScale = 1
     fontColor = (15,15,15)
+    fontPlayerColor = [(254, 50, 50), (33, 30, 200), (88, 169, 16)]
     thickness = 1
+    thicknessImportant = 2
     line_height = int( padded_image.shape[0] * 0.03)
     line_offset_y = line_height
     line_offset_x = int(rescaled.shape[1] + 0.05 * pad_right)
@@ -403,28 +569,46 @@ while cap.isOpened():
 
     n_players = 1
     for i in range(3):
-        if pawn_pos[i] !=-1:
-            bottomLeftCornerOfText = (line_offset_x, line_height * (n_players) + line_offset_y)
-            text = f"Player {player_names[i]}: {field_names[pawn_pos[i]]}"
-            n_players +=1
-            cv.putText(padded_image, text,
-                       bottomLeftCornerOfText,
-                       font,
-                       fontScale,
-                       fontColor,
-                       thickness,
-                       lineType)
+        if pawn_pos[i] != -1:
+            column = 300 if n_players % 2 == 0 else 0
+            bottomLeftCornerOfText = (line_offset_x + column, line_height + line_offset_y)
+            
+            player_text = f"Player {player_names[i].upper()}"
+            rest_text = f": {field_names[pawn_pos[i]]}"
+            
+            player_text_size = cv.getTextSize(player_text, font, fontScale, thickness)[0]
+            player_text_width = player_text_size[0]
+
+            cv.putText(padded_image, player_text,
+                    bottomLeftCornerOfText,
+                    font,
+                    fontScale,
+                    fontPlayerColor[i],
+                    thicknessImportant,
+                    lineType)
+            
+            rest_text_position = (bottomLeftCornerOfText[0] + player_text_width, bottomLeftCornerOfText[1])
+            cv.putText(padded_image, rest_text,
+                    rest_text_position,
+                    font,
+                    fontScale,
+                    (0, 0, 0),
+                    thickness,
+                    lineType)
+            
+            n_players += 1
+            
     if len(events) > 0:
         bottomLeftCornerOfText = (line_offset_x, line_height * (n_players) + line_offset_y)
         cv.putText(padded_image, "Events:",
                    bottomLeftCornerOfText,
                    font,
-                   fontScale,
+                   fontScale * 1.4,
                    fontColor,
-                   thickness,
+                   thickness * 2,
                    lineType)
     for i in range(len(events)):
-        if (i > 15):
+        if (i > 12):
             break
         bottomLeftCornerOfText = (line_offset_x, line_height * (n_players + i + 1) + line_offset_y)
         event = events[len(events)-i-1]
@@ -436,7 +620,41 @@ while cap.isOpened():
                    thickness,
                    lineType)
 
+    n_players = 1
+    for i in range(3):
+        if pawn_pos[i] == -1:
+            continue
+        alpha = 0.4
+        player = player_names[i]
+        player_str = player.split()[0].upper()
+        column = 300 if n_players % 2 == 0 else 0
+        bottomLeftCornerOfText = (line_offset_x + column, line_height + 600)
+        cv.putText(padded_image, f"{player_str} properties:",
+                   bottomLeftCornerOfText,
+                   font,
+                   fontScale,
+                   fontPlayerColor[i],
+                   thicknessImportant,
+                   lineType)
+        for j, field in enumerate(fields_owned[player]):
+            field_upper_left, field_bottom_right = get_field_coords(field)
+            field_upper_left = (field_upper_left[0] + board_top_left[0], field_upper_left[1] + board_top_left[1])
+            field_bottom_right = (field_bottom_right[0] + board_top_left[0], field_bottom_right[1] + board_top_left[1])
 
+            overlay = padded_image.copy()
+            cv.rectangle(overlay, field_upper_left, field_bottom_right, fontPlayerColor[i], -1)
+            cv.addWeighted(overlay, alpha, padded_image, 1 - alpha, 0, padded_image)
+            
+            bottomLeftCornerOfText = (line_offset_x + 300 * (i % 2), line_height * (j + 2) + 600)
+            cv.putText(padded_image, field_names[field],
+                       bottomLeftCornerOfText,
+                       font,
+                       fontScale,
+                       fontColor,
+                       thickness,
+                       lineType)
+        n_players += 1
+    
     cv.imshow('frame', padded_image)
     if cv.waitKey(1) == ord('q'):
         break
